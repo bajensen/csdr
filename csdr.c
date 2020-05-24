@@ -1154,7 +1154,7 @@ int main(int argc, char *argv[])
         errhead(); fprintf(stderr,"NEON aligned taps = %x\n", taps);
         for(int i=0;i<padded_taps_length-taps_length;i++) taps[taps_length+i]=0;
 #else
-        taps=(float*)malloc(taps_length*sizeof(float));
+        taps=(float*)malloc(padded_taps_length*sizeof(float));
 #endif
 
         firdes_lowpass_f(taps,taps_length,0.5/(float)factor,window);
@@ -1166,11 +1166,16 @@ int main(int argc, char *argv[])
         {
             FEOF_CHECK;
             output_size=fir_decimate_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, factor, taps, padded_taps_length);
+            output_size--;//output end index is 1 too far, so step it back by 1
             //fprintf(stderr, "os %d\n",output_size);
             fwrite(output_buffer, sizeof(complexf), output_size, stdout);
             TRY_YIELD;
             input_skip=factor*output_size;
-            memmove((complexf*)input_buffer,((complexf*)input_buffer)+input_skip,(the_bufsize-input_skip)*sizeof(complexf)); //memmove lets the source and destination overlap
+            memmove(
+                (complexf*) input_buffer,//dst
+                ((complexf*)input_buffer) + input_skip,//src
+                (the_bufsize - input_skip) * sizeof(complexf)//len
+            ); //memmove lets the source and destination overlap
             fread(((complexf*)input_buffer)+(the_bufsize-input_skip), sizeof(complexf), input_skip, stdin);
             //fprintf(stderr,"iskip=%d output_size=%d start=%x target=%x skipcount=%x \n",input_skip,output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-input_skip),(BIG_BUFSIZE-input_skip));
         }
